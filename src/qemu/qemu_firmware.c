@@ -1899,6 +1899,17 @@ qemuFirmwareFillDomain(virQEMUDriver *driver,
         return 0;
     }
 
+    /* For CCA guests, qemuDomainDefCCAFirmwarePostParse converts the
+     * pflash loader to ROM after the first-pass firmware match has
+     * already filled in the loader path. On the second call from
+     * VM startup the loader is already ROM-typed; skip re-matching
+     * to avoid rejecting the (correctly-resolved) loader against
+     * flash-mapped JSON descriptors. */
+    if (loader && loader->type == VIR_DOMAIN_LOADER_TYPE_ROM &&
+        def->sec && def->sec->sectype == VIR_DOMAIN_LAUNCH_SECURITY_CCA) {
+        return 0;
+    }
+
     /* Look for the information we need in firmware descriptors */
     if ((ret = qemuFirmwareFillDomainModern(driver, def)) < 0)
         return -1;

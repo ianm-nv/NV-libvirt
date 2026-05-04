@@ -1864,6 +1864,40 @@ qemuDomainDefNumaCPUsPostParse(virDomainDef *def,
 
 
 /**
+ * qemuDomainDefCCAFirmwareHintPreParse:
+ * @def: domain definition
+ *
+ * For CCA guests using firmware autoselection ('firmware="efi"'), hint the
+ * firmware matcher away from Secure Boot / enrolled-keys variants. CCA realms
+ * have their own measurement chain (RMM) and don't use UEFI Secure Boot; the
+ * first JSON descriptor that loosely matches "uefi + aarch64 + virt" would
+ * otherwise be picked, which can be the .ms.fd or .secboot.fd image.
+ *
+ * Must be called *before* qemuDomainDefBootPostParse() so the hints are
+ * applied during firmware selection.
+ */
+static void
+qemuDomainDefCCAFirmwareHintPreParse(virDomainDef *def)
+{
+    if (!def->sec ||
+        def->sec->sectype != VIR_DOMAIN_LAUNCH_SECURITY_CCA)
+        return;
+
+    if (def->os.firmware != VIR_DOMAIN_OS_DEF_FIRMWARE_EFI)
+        return;
+
+    if (!def->os.firmwareFeatures)
+        def->os.firmwareFeatures = g_new0(int, VIR_DOMAIN_OS_DEF_FIRMWARE_FEATURE_LAST);
+
+    if (def->os.firmwareFeatures[VIR_DOMAIN_OS_DEF_FIRMWARE_FEATURE_SECURE_BOOT] == VIR_TRISTATE_BOOL_ABSENT)
+        def->os.firmwareFeatures[VIR_DOMAIN_OS_DEF_FIRMWARE_FEATURE_SECURE_BOOT] = VIR_TRISTATE_BOOL_NO;
+
+    if (def->os.firmwareFeatures[VIR_DOMAIN_OS_DEF_FIRMWARE_FEATURE_ENROLLED_KEYS] == VIR_TRISTATE_BOOL_ABSENT)
+        def->os.firmwareFeatures[VIR_DOMAIN_OS_DEF_FIRMWARE_FEATURE_ENROLLED_KEYS] = VIR_TRISTATE_BOOL_NO;
+}
+
+
+/**
  * qemuDomainDefCCAFirmwarePostParse:
  * @def: domain definition
  *
@@ -1924,6 +1958,10 @@ qemuDomainDefPostParse(virDomainDef *def,
         return -1;
 
     qemuDomainDefACPIPostParse(def, qemuCaps, parseFlags);
+
+    /* For CCA guests, hint the firmware matcher to avoid Secure Boot
+     * variants before firmware selection runs. */
+    qemuDomainDefCCAFirmwareHintPreParse(def);
 
     if (qemuDomainDefBootPostParse(def, driver, parseFlags) < 0)
         return -1;
