@@ -1,3 +1,9 @@
+libvirt (11.9.0+nvidia-unstable5+ianm2-1) noble; urgency=medium
+
+  * qemu: make firmware autoselection work for CCA realms
+
+ -- Ian May <ianm@nvidia.com>  Mon, 04 May 2026 17:00:00 -0500
+
 libvirt (11.9.0+nvidia-unstable5+ianm1-1) noble; urgency=medium
 
   * qemu: don't abort capability probe when CCA query fails at runtime
